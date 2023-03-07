@@ -1,0 +1,126 @@
+border a(t=0.0,360.0) { x=t; y=0 ;label=1;}; // Bottom
+border b(t=360.0,160.0) {x=t; y=-t+360.0;label=2;}; // Right
+border c(t=160.0,0.0) { x=t; y=200.0;label=3;}; // Top
+border d(t=200.0,0.0) { x=0; y=t;label=4;}; // Left
+mesh th = buildmesh( a(36)+b(40)+c(16)+d(40)); //Mesh generation
+plot(th, wait=1);
+
+
+fespace Vh(th,P1); //Definition of finite element space
+Vh T,W,Nr,Ns,T0,W0,Se,Ksat,K,lamda,Jq,Jx,Kq,Ks,Cq,Lq,Km,Kn,Cx,Lx;
+Vh Sr,lamdaR,lamdaSAT,lamdaDRY;
+real DT=1.0e-5,L=540,xiplon=0.3,pl=1,Dx=1.0e-2,C=0.48,m1=0.5,Ws=0.5,Wr=0.004;
+real dt, time, timeend;
+real[int] X(86401),T1(86401), T2(86401), T3(86401),W1(86401), W2(86401), W3(86401);
+macro grad(T) [dx(T),dy(T)] //
+T0=10;
+W0=0.5-y/1000;
+
+Sr=W0/Ws;
+lamdaR=3.55*Sr/(1+2.55*Sr);
+lamdaSAT=0.025;
+lamdaDRY=0.0005;
+lamda=(lamdaSAT-lamdaDRY)*lamdaR+lamdaDRY;
+//lamda=0.02;
+//lamda=(2.1818*W0+0.808)/418.4;
+Se=(W0-Wr)/(Ws-Wr);
+Ksat=1.3e-5;
+K=Ksat*Se^0.5*(1-(1-Se^(1/m1))^m1)^2;
+//Definition of all parameters in control equations
+Kq=DT*(lamda+L*xiplon*pl*DT);
+Ks=L*xiplon*pl*DT*Dx;
+Cq=C*DT;
+Lq=L*xiplon*pl*DT;
+
+//L*(all)
+Km=L*xiplon*pl*DT*Dx;
+Kn=L*xiplon*pl*Dx*Dx;
+Cx=L*xiplon*pl*Dx;
+Lx=L*xiplon*pl*Dx;
+
+
+timeend=864000*6;
+dt=1000;
+time=0;
+Jq=0.0;
+Jx=-1e-5;
+plot(T0,fill=1,cmm="T0",value=1,wait=1);
+plot(W0,fill=1,cmm="W0",value=1,wait=1);
+
+problem couplemodel(T,W,Nr,Ns)=
+int2d(th)(Kq*(grad(T))'* grad(Nr))
++ int2d(th)(Lq*K*dy(Nr))
+//-int2d(th)(Lq*Nr*dy(K))	
++int2d(th)(Ks*(grad(Nr))'*grad(W))
++int2d(th)(Cq*Nr*T/dt)
+-int2d(th)(Cq*Nr*T0/dt)
+-int1d(th,2,3)(Nr*Lq*Jx)
+-int1d(th,2,3)(Nr*Jq)
++ on(2, T=25)
++ on(3, T=25)
++int2d(th) (Km*(grad(T))'*grad(Ns))
++ int2d(th) (Lx*K*dy(Ns))
+//- int2d(th) (Lx*Ns*dy(K))
++int2d(th) (Kn*(grad(Ns))'*grad(W))
++int2d(th) (Cx*Ns*W/dt)
+- int2d(th) (Cx*Ns*W0/dt)
+-int1d(th,2,3) (Ns*Jq*Km/Kq)
+-int1d(th,2,3)(Ns*Lx*Jx)
++ on(1, W=0.5)
+//+ on(3, W=0.2)
+;
+
+
+
+ofstream ffa("T2d-case3.txt");
+ofstream ffb("W2d-case3.txt");
+
+while(time<=timeend)
+{
+couplemodel;
+
+Sr=W/Ws;
+lamdaR=3.55*Sr/(1+2.55*Sr);
+lamdaSAT=0.025;
+lamdaDRY=0.0005;
+lamda=(lamdaSAT-lamdaDRY)*lamdaR+lamdaDRY;
+
+//lamda=0.02;
+//lamda=(2.1818*W+0.808)/418.4;
+Se=(W-Wr)/(Ws-Wr);
+K=Ksat*Se^0.5*(1-(1-Se^(1/m1))^m1)^2;
+//Definition of all parameters in control equations
+Kq=DT*(lamda+L*xiplon*pl*DT);
+Ks=L*xiplon*pl*DT*Dx;
+Cq=C*DT;
+Lq=L*xiplon*pl*DT;
+
+//L*(all)
+Km=L*xiplon*pl*DT*Dx;
+Kn=L*xiplon*pl*Dx*Dx;
+Cx=L*xiplon*pl*Dx;
+Lx=L*xiplon*pl*Dx;
+
+Jq=0.0;
+Jx=-1e-5;
+
+int j=0;
+X(j)=time;
+T1(j)=T0(20,180);
+T2(j)=T0(20,100);
+T3(j)=T0(20,20);
+ffa<<X(j)<<" "<<T1(j)<<" "<<T2(j)<<" "<<T3(j)<<endl;
+W1(j)=W0(20,180);
+W2(j)=W0(20,100);
+W3(j)=W0(20,20);
+ffb<<X(j)<<" "<<W1(j)<<" "<<W2(j)<<" "<<W3(j)<<endl;
+j=j+1;
+
+plot(T,fill=1,value=1,wait=0);
+time=time+dt;
+T0=T;
+W0=W;
+}
+
+plot(T,fill=1,value=1,ps="T.eps",wait=1);
+plot(W,fill=1,value=1,ps="W.eps",wait=1);
