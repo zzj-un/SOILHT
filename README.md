@@ -4,4 +4,4 @@ Name of the program:
     
 Tltle of the manuscript:
 
-    SOILHT: a finite code to simulate hydro-thermal problem for addressing soil-atmosphere interaction in geotechnical and geological engineering
+    SOILHT: an integrated finit element method in FreeFem++ softwarea; a finite code to simulate hydro-thermal problem for addressing soil-atmosphere interaction in geotechnical and geological engineering
